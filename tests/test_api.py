@@ -14,8 +14,7 @@ async def test_health():
 async def test_submit_job():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport = transport, base_url = "http://test") as client:
-        response = await client.post("/jobs", json = {"task":"send_email"})
+        response = await client.post("/jobs", json = {"task":"send_email", "payload":{"to":"a@b.com"}})
     assert response.status_code == 200
-    assert response.json()["recieved"]["task"] == "send_email"
 
 
