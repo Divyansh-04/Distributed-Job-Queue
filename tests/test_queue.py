@@ -3,28 +3,14 @@ import pytest
 from app.queue import enqueue_job, get_job, peek_next_job_id, get_client, QUEUE_KEY
 
 
-# @pytest.fixture(autouse=True)
-# async def clean_redis():
-#     client = get_client()
-#     await client.flushdb()
-#     yield
-#     await client.flushdb()
-
-
 @pytest.mark.asyncio
 async def test_enqueue_and_get_job():
     job_id = await enqueue_job("send_email", {"to": "a@b.com"}, "high")
     job = await get_job(job_id)
 
-    print(job)
-
-    assert True
-
-    return
-
     assert job["task"] == "send_email"
     assert job["payload"] == {"to": "a@b.com"}
-    assert job["status"] == "queued"
+    assert job["status"] == "enqueued"
 
 
 @pytest.mark.asyncio
