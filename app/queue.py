@@ -2,6 +2,7 @@ import json
 import uuid
 import time 
 
+import asyncio
 import redis.asyncio as redis
 
 from app.config import REDIS_URL
@@ -64,9 +65,39 @@ async def peek_next_job_id()->str | None:
     result = await client.zrange(QUEUE_KEY, 0, 0)
     return result[0] if result else None
 
-async def queue_length()->int:
+async def get_queue_length()->int:
     client = get_client()
     return await client.zcard(QUEUE_KEY)
 
 
+async def naive_claim_job() ->str | None:
+    client = get_client()
+    job_id = await peek_next_job_id()
+    if job_id is None:
+        return None
+    # await asyncio.sleep(0.1)  
+    await client.zrem(QUEUE_KEY, job_id)
+    return job_id
+
+CLAIM_SCRIPT = """
+local queue_key = KEYS[1]
+local job_prefix = ARGV[1]
+
+local result = redis.call('zrange', queue_key, 0, 0)
+if #result == 0 then
+    return nil
+end
+
+local job_id = result[1]
+redis.call('zrem', queue_key, job_id)
+redis.call('hset', job_prefix .. job_id, 'status', 'processing')
+
+return job_id
+
+"""
+
+async def claim_job() -> str | None:
+    client = get_client()
+    job_id = await client.eval(CLAIM_SCRIPT, 1, QUEUE_KEY, "job:")
+    return job_id
 

@@ -45,6 +45,7 @@ async def worker_loop():
 
         print("[worker] processing job:", job_id) 
         await client.zrem(QUEUE_KEY, job_id)
+        await client.hset(_job_key(job_id), "status", "processing")
         await process_job(job_id)
 
 
