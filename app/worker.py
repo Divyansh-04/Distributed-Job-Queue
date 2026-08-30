@@ -1,7 +1,7 @@
 import asyncio
 import time 
 
-from app.queue import get_client, get_job, QUEUE_KEY, _job_key, peek_next_job_id
+from app.queue import get_client, get_job, _job_key, claim_job
 from app.tasks import TASK_REGISTRY
 
 POLL_INTERVAL_SECONDS = 0.2
@@ -36,16 +36,13 @@ async def worker_loop():
     client = get_client()
     print("[worker] starting, polling for jobs...")
     while True:
-        job_id = await peek_next_job_id()
+        job_id = await claim_job()
+
         if job_id is None:
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             continue
 
-        # NOT ATOMIC
-
         print("[worker] processing job:", job_id) 
-        await client.zrem(QUEUE_KEY, job_id)
-        await client.hset(_job_key(job_id), "status", "processing")
         await process_job(job_id)
 
 
