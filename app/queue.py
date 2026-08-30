@@ -2,7 +2,6 @@ import json
 import uuid
 import time 
 
-import asyncio
 import redis.asyncio as redis
 
 from app.config import REDIS_URL
@@ -65,7 +64,7 @@ async def peek_next_job_id()->str | None:
     result = await client.zrange(QUEUE_KEY, 0, 0)
     return result[0] if result else None
 
-async def get_queue_length()->int:
+async def queue_length()->int:
     client = get_client()
     return await client.zcard(QUEUE_KEY)
 

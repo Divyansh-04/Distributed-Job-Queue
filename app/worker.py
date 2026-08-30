@@ -1,10 +1,12 @@
 import asyncio
 import time 
+import os
 
 from app.queue import get_client, get_job, _job_key, claim_job
 from app.tasks import TASK_REGISTRY
 
-POLL_INTERVAL_SECONDS = 0.2
+POLL_INTERVAL_SECONDS = 0.5
+CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", '4'))
 
 
 async def process_job(job_id:str):
@@ -31,10 +33,10 @@ async def process_job(job_id:str):
         print(f"[worker] job {job_id} failed: {e}")
         await client.hset(_job_key(job_id), "status", "failed")
 
+async def worker_slot(slot_it:int):
+    tag = f"[worker-slot-{slot_it}]"
+    print(f"{tag} starting")
 
-async def worker_loop():
-    client = get_client()
-    print("[worker] starting, polling for jobs...")
     while True:
         job_id = await claim_job()
 
@@ -42,8 +44,13 @@ async def worker_loop():
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             continue
 
-        print("[worker] processing job:", job_id) 
+        print(f"{tag} processing job:", job_id) 
         await process_job(job_id)
+
+
+async def worker_loop():
+    print(f"[worker] starting {CONCURRENCY} concurrent slots...")
+    await asyncio.gather(*[worker_slot(i) for i in range(CONCURRENCY)])
 
 
 if __name__ == "__main__":

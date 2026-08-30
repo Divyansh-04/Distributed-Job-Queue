@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from app.queue import enqueue_job, get_job, get_queue_length
+from app.queue import enqueue_job, get_job, queue_length
 
 
 app = FastAPI(title = "Distributed Job Queue")
