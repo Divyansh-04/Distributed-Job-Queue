@@ -1,0 +1,33 @@
+import pytest
+
+from app.worker import process_job
+from app.queue import enqueue_job, get_job, claim_job, compute_backoff_delay, MAX_BACKOFF_SECONDS
+
+
+def test_backoff_delay_increases_and_cap():
+    delays = [compute_backoff_delay(i) for i in range(5)]
+    for i in range(1, len(delays)):
+        assert delays[i] > delays[i-1], f"Delay did not increase for retry count {i}"
+
+    assert delays[-1] <= MAX_BACKOFF_SECONDS+1, "Delay exceeded maximum backoff limit"
+
+@pytest.mark.asyncio
+async def test_job_retries_then_permanently_fails():
+    job_id = await enqueue_job("always_fail_task", {"test": "data"}, priority="normal", max_retries=2)
+
+    await process_job(job_id, "test-worker")
+    job = await get_job(job_id)
+    assert job["status"] == "retrying"
+    assert job['retry_count'] == "1"
+
+    assert await claim_job() is None 
+
+    await process_job(job_id, "test-worker")
+    job = await get_job(job_id)
+    assert job["status"] == "retrying"
+    assert job['retry_count'] == "2"
+
+    await process_job(job_id, "test-worker")
+    job = await get_job(job_id)
+    assert job["status"] == "failed"
+    

@@ -2,39 +2,50 @@ import asyncio
 import time 
 import os
 
-from app.queue import get_client, get_job, _job_key, claim_job
+from app.queue import get_client, get_job, _job_key, claim_job, schedule_retry
 from app.tasks import TASK_REGISTRY
 
 POLL_INTERVAL_SECONDS = 0.5
 CONCURRENCY = int(os.environ.get("WORKER_CONCURRENCY", '4'))
 
 
-async def process_job(job_id:str):
+async def process_job(job_id:str, worker_tag: str):
     client = get_client()
     job = await get_job(job_id)
 
     if job is None:
-        print("[worker] job not found:", job_id)
+        print(f"[{worker_tag}] job not found:", job_id)
         return
 
     task_name = job["task"]
     handler = TASK_REGISTRY.get(task_name)
 
     if handler is None:
-        print(f"[worker] unknown task type '{task_name}', marking failed")
+        print(f"[{worker_tag}] unknown task type '{task_name}', marking failed")
         await client.hset(_job_key(job_id), "status", "failed")
         return
 
+    print(f"[{worker_tag}] running job {job_id} ({task_name})")
     try:
         await handler(job["payload"])
         await client.hset(_job_key(job_id), "status", "completed")
         await client.hset(_job_key(job_id), "completed_at", str(time.time()))
+        print(f"[{worker_tag}] job {job_id} completed")
+
     except Exception as e:
-        print(f"[worker] job {job_id} failed: {e}")
-        await client.hset(_job_key(job_id), "status", "failed")
+        retry_count = int(job.get("retry_count", "0"))+1
+        max_retries = int(job.get("max_retries"))
+
+        if retry_count <= max_retries:
+            delay = await schedule_retry(job_id, retry_count)
+            print(f"[{worker_tag}] job {job_id} failed: {e}, retrying in {delay:.2f} seconds (retry {retry_count}/{max_retries})")
+        else:
+            await client.hset(_job_key(job_id), "status", "failed")
+            print(f"[{worker_tag}] job {job_id} failed: {e}, after {retry_count-1} retries, marking as failed")
+
 
 async def worker_slot(slot_it:int):
-    tag = f"[worker-slot-{slot_it}]"
+    tag = f"worker-slot-{slot_it}"
     print(f"{tag} starting")
 
     while True:
@@ -45,7 +56,7 @@ async def worker_slot(slot_it:int):
             continue
 
         print(f"{tag} processing job:", job_id) 
-        await process_job(job_id)
+        await process_job(job_id, tag)
 
 
 async def worker_loop():
