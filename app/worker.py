@@ -2,7 +2,7 @@ import asyncio
 import time 
 import os
 
-from app.queue import get_client, get_job, _job_key, claim_job, schedule_retry
+from app.queue import get_client, get_job, _job_key, claim_job, schedule_retry, move_job_to_dlq
 from app.tasks import TASK_REGISTRY
 
 POLL_INTERVAL_SECONDS = 0.5
@@ -40,8 +40,8 @@ async def process_job(job_id:str, worker_tag: str):
             delay = await schedule_retry(job_id, retry_count)
             print(f"[{worker_tag}] job {job_id} failed: {e}, retrying in {delay:.2f} seconds (retry {retry_count}/{max_retries})")
         else:
-            await client.hset(_job_key(job_id), "status", "failed")
-            print(f"[{worker_tag}] job {job_id} failed: {e}, after {retry_count-1} retries, marking as failed")
+            await move_job_to_dlq(job_id, str(e))
+            print(f"[{worker_tag}] job {job_id} failed: {e}, after {retry_count-1} retries, moving to DLQ")
 
 
 async def worker_slot(slot_it:int):
