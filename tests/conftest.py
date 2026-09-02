@@ -16,5 +16,5 @@ def cleanup_redis():
 
 
     if queue_module._client is not None:
-        queue_module._client.close()
+        queue_module._client.aclose()
         queue_module._client = None

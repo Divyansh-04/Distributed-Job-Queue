@@ -116,7 +116,7 @@ local now = tonumber(ARGV[2])
 local ready = redis.call('ZRANGEBYSCORE', delayed_key, '-inf', now)
 for i, job_id in ipairs(ready) do
     local job_key = job_prefix .. job_id
-    local offset = tonumber(redis.call('HGET', job_key, 'priority_offset_'))
+    local offset = tonumber(redis.call('HGET', job_key, 'priority_offset'))
 
     redis.call('ZREM', delayed_key, job_id)
     redis.call('zadd', queue_key, now + offset, job_id)

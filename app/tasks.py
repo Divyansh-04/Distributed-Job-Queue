@@ -10,7 +10,7 @@ async def send_email(payload: dict):
 async def flaky_task(payload: dict):
     """Fails ~50% of the time -- useful for testing retries in Step 8."""
     print(f"  [task] running flaky_task")
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(random.uniform(0, 0.5))
     if random.random() < 0.5:
         raise RuntimeError("flaky_task failed randomly")
     print(f"  [task] flaky_task succeeded")

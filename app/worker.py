@@ -22,7 +22,7 @@ async def process_job(job_id:str, worker_tag: str):
 
     if handler is None:
         print(f"[{worker_tag}] unknown task type '{task_name}', marking failed")
-        await client.hset(_job_key(job_id), "status", "failed")
+        await move_job_to_dlq(job_id, f"unknown task type '{task_name}'")
         return
 
     print(f"[{worker_tag}] running job {job_id} ({task_name})")
