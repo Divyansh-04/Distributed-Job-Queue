@@ -14,7 +14,7 @@ def test_backoff_delay_increases_and_cap():
 @pytest.mark.asyncio
 async def test_job_retries_then_permanently_fails(monkeypatch):
     import asyncio
-    monkeypatch.setattr("app.queue.compute_backoff_delay", lambda retry_count: 0.10)
+    monkeypatch.setattr("app.queue.compute_backoff_delay", lambda retry_count: 0.01)
 
     await enqueue_job("always_fail_task", {"test": "data"}, priority="normal", max_retries=2)
 
@@ -26,7 +26,7 @@ async def test_job_retries_then_permanently_fails(monkeypatch):
 
     assert await claim_job() is None 
 
-    await asyncio.sleep(0.12)  
+    await asyncio.sleep(0.02)  
 
     job_id = await claim_job()
     await process_job(job_id, "test-worker")
@@ -34,7 +34,7 @@ async def test_job_retries_then_permanently_fails(monkeypatch):
     assert job["status"] == "retrying"
     assert job['retry_count'] == "2"
 
-    await asyncio.sleep(0.12)  
+    await asyncio.sleep(0.02)  
 
     job_id = await claim_job()
     await process_job(job_id, "test-worker")

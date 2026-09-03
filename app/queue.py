@@ -166,21 +166,23 @@ async def get_dlq_length()->int:
     client = get_client()
     return await client.hlen(DLQ_KEY)
 
-async def requeue_dlq_job(job_id:str)->bool:
+async def requeue_dlq_job(job_id:str, priority:str = "default")->bool:
     client = get_client()
     job = await get_job(job_id)
     if not job:
         return False
+
+    if priority == "default":
+        priority = job["priority"]
     
     assert(job.get("status")) == "failed", f"job {job_id} is not in failed state, cannot requeue"
 
     await client.hdel(DLQ_KEY, job_id)
     await client.hset(_job_key(job_id), mapping = {
-        "status": "enqueued",
+        "status": "requeued",
         "retry_count": "0",
         "enqueued_at": str(time.time())
     })
-    priority = job.get["priority"]
-    score = time.time()
+    score = time.time() + PRIORITY_OFFSET_SECONDS[job["priority"]]
     await client.zadd(QUEUE_KEY, {job_id: score})
     return True

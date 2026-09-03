@@ -41,7 +41,7 @@ async def process_job(job_id:str, worker_tag: str):
             print(f"[{worker_tag}] job {job_id} failed: {e}, retrying in {delay:.2f} seconds (retry {retry_count}/{max_retries})")
         else:
             await move_job_to_dlq(job_id, str(e))
-            print(f"[{worker_tag}] job {job_id} failed: {e}, after {retry_count-1} retries, moving to DLQ")
+            print(f"[{worker_tag}] job {job_id} failed: {e}, after {retry_count-1} retries, moved to DLQ")
 
 
 async def worker_slot(slot_it:int):
