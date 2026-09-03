@@ -4,6 +4,7 @@ import time
 import random
 
 import redis.asyncio as redis
+import asyncio
 
 from app.config import REDIS_URL
 
@@ -20,13 +21,13 @@ PRIORITY_OFFSET_SECONDS = {
     "low": 20
 }
 
-_client : redis.Redis | None = None
+_clients : dict[int, redis.Redis] = {}
 
 def get_client() -> redis.Redis:
-    global _client
-    if _client is None:
-        _client = redis.from_url(REDIS_URL, decode_responses = True)
-    return  _client
+    key = id(asyncio.get_running_loop())
+    if key not in _clients:
+        _clients[key] = redis.from_url(REDIS_URL, decode_responses = True)
+    return  _clients[key]
 
 
 def _job_key(job_id: str) ->str:

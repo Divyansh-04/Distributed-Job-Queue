@@ -1,10 +1,9 @@
 import redis as sync_redis
+import redis.asyncio as redis
 import pytest
 
-
 from app.config import REDIS_URL
-import app.queue as queue_module
-
+from app.queue import get_client
 
 @pytest.fixture(autouse=True)
 def cleanup_redis():
@@ -13,8 +12,3 @@ def cleanup_redis():
     yield
     sync_client.flushdb()
     sync_client.close()
-
-
-    if queue_module._client is not None:
-        queue_module._client.aclose()
-        queue_module._client = None
