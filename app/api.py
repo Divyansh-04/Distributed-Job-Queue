@@ -1,7 +1,14 @@
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.queue import enqueue_job, get_job, queue_length, get_dlq_length, get_dlq_jobs, requeue_dlq_job
+
+VERBOSE = os.getenv("WORKER_VERBOSE", "false").lower() == "true"
+
+def log(msg: str):
+    if VERBOSE:
+        print(msg)
 
 
 app = FastAPI(title = "Distributed Job Queue")
